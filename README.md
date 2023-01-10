@@ -1,2 +1,2 @@
 # nipam
-Experimental IPAM
+Experimental implementation of IPAM in golang
