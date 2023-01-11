@@ -89,7 +89,13 @@ func (r Route) UpdateLabel(label map[string]string) Route {
 	return r
 }
 
-func (r Route) UpdateData(d map[string]any) Route {
+func (r Route) Set(d map[string]any) Route {
+	r.data = d
+
+	return r
+}
+func (r Route) Delete() Route {
+	var d map[string]any = make(map[string]any)
 	r.data = d
 
 	return r
