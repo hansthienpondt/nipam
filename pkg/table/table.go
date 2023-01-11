@@ -2,6 +2,7 @@ package table
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 	"sort"
 	"sync"
@@ -27,16 +28,63 @@ func NewRIB() *RIB {
 
 func (rib RIB) Add(r Route) error {
 	var p patricia.IPv6Address
+	_, found := rib.Get(r.Prefix())
+	if found {
+		return fmt.Errorf("Route %s already exists in the routing table", r.cidr.String())
+	}
 
-	rib.mu.Lock()
-	defer rib.mu.Unlock()
 	if r.cidr.Addr().Is4() {
 		p = patricia.NewIPv6Address(netip.AddrFrom16(r.cidr.Addr().As16()).AsSlice(), uint(96+r.cidr.Bits()))
 	}
 	if r.cidr.Addr().Is6() {
 		p = patricia.NewIPv6Address(r.cidr.Addr().AsSlice(), uint(r.cidr.Bits()))
 	}
-	rib.tree.Add(p, r, nil)
+	rib.mu.Lock()
+	defer rib.mu.Unlock()
+	ok, _ := rib.tree.Set(p, r)
+	if !ok {
+		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
+	}
+	return nil
+}
+
+func (rib RIB) Set(r Route) error {
+	var p patricia.IPv6Address
+
+	if r.cidr.Addr().Is4() {
+		p = patricia.NewIPv6Address(netip.AddrFrom16(r.cidr.Addr().As16()).AsSlice(), uint(96+r.cidr.Bits()))
+	}
+	if r.cidr.Addr().Is6() {
+		p = patricia.NewIPv6Address(r.cidr.Addr().AsSlice(), uint(r.cidr.Bits()))
+	}
+	rib.mu.Lock()
+	defer rib.mu.Unlock()
+	ok, _ := rib.tree.Set(p, r)
+	if !ok {
+		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
+	}
+	return nil
+}
+
+func (rib RIB) Delete(r Route) error {
+	var p patricia.IPv6Address
+
+	if r.cidr.Addr().Is4() {
+		p = patricia.NewIPv6Address(netip.AddrFrom16(r.cidr.Addr().As16()).AsSlice(), uint(96+r.cidr.Bits()))
+	}
+	if r.cidr.Addr().Is6() {
+		p = patricia.NewIPv6Address(r.cidr.Addr().AsSlice(), uint(r.cidr.Bits()))
+	}
+	matchFunc := func(r1, r2 Route) bool {
+		return r1.Equal(r2)
+	}
+	rib.mu.Lock()
+	defer rib.mu.Unlock()
+	len := rib.tree.Delete(p, matchFunc, r)
+	if len == 0 {
+		return fmt.Errorf("Route %s does not exist in the routing table", r.cidr.String())
+
+	}
 	return nil
 }
 
@@ -49,9 +97,6 @@ func (rib RIB) Clone() *RIB {
 func (rib RIB) LPM(cidr netip.Prefix) Routes {
 	var p patricia.IPv6Address
 
-	rib.mu.RLock()
-	defer rib.mu.RUnlock()
-
 	if cidr.Addr().Is4() {
 		p = patricia.NewIPv6Address(netip.AddrFrom16(cidr.Addr().As16()).AsSlice(), uint(96+cidr.Bits()))
 	}
@@ -62,6 +107,8 @@ func (rib RIB) LPM(cidr netip.Prefix) Routes {
 	// rib.tree.FindDeepestTag performs a LPM lookup
 
 	//fmt.Println(rib.tree.FindTagsWithFilter(p, nil))
+	rib.mu.RLock()
+	defer rib.mu.RUnlock()
 	foundLabels := make([]Route, 0)
 	foundLabels = rib.tree.FindTagsWithFilterAppend(foundLabels, p, nil)
 
@@ -80,7 +127,6 @@ func (rib RIB) Get(cidr netip.Prefix) (Route, bool) {
 			return iter.Route(), true
 		}
 	}
-
 	return Route{cidr: cidr, labels: labels.Set{}}, false
 }
 

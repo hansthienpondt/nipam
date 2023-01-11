@@ -11,6 +11,7 @@ import (
 
 	"github.com/hansthienpondt/nipam/pkg/table"
 	log "github.com/sirupsen/logrus"
+	"go4.org/netipx"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
@@ -34,6 +35,7 @@ func main() {
 	log.Debugf("Program Initialized")
 
 	rtable := table.NewRIB()
+	fmt.Println(rtable.Get(netip.MustParsePrefix("192.168.0.0/24")))
 	cidrs := map[string]map[string]string{
 		"10.0.0.0/8": {
 			"description": "rfc1918",
@@ -186,4 +188,7 @@ func main() {
 	// Printing the Stdout seperator
 	fmt.Println(strings.Repeat("#", 64))
 
+	tst := netip.MustParsePrefix("192.122.0.0/24")
+
+	fmt.Println(netipx.PrefixLastIP(tst))
 }
