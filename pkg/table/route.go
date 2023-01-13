@@ -46,9 +46,7 @@ func (r Route) Equal(r2 Route) bool {
 }
 
 func (r Route) String() string {
-	var s string
-	s = fmt.Sprintf("%s %s", r.cidr.String(), r.labels.String())
-	return s
+	return fmt.Sprintf("%s %s", r.cidr.String(), r.labels.String())
 }
 
 func (r Route) Prefix() netip.Prefix {
@@ -107,8 +105,7 @@ func (r Route) DeleteData() Route {
 
 // Satisfy the json Interface.
 func (r Route) MarshalJSON() ([]byte, error) {
-	var result map[string]labels.Set
-	result = make(map[string]labels.Set)
+	result := make(map[string]labels.Set)
 	result[r.cidr.String()] = r.labels
 	return json.Marshal(result)
 }
@@ -118,8 +115,7 @@ func (r Routes) Less(i, j int) bool { return r[i].cidr.Bits() > r[j].cidr.Bits()
 func (r Routes) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 
 func (r Routes) MarshalJSON() ([]byte, error) {
-	var result map[string]labels.Set
-	result = make(map[string]labels.Set)
+	result := make(map[string]labels.Set)
 
 	for _, route := range r {
 		result[route.cidr.String()] = route.labels

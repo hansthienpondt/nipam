@@ -14,7 +14,7 @@ import (
 )
 
 type RIB struct {
-	mu   sync.RWMutex
+	mu   *sync.RWMutex
 	tree *generics_tree.TreeV6[Route]
 }
 
@@ -43,7 +43,7 @@ func (rib RIB) Add(r Route) error {
 	defer rib.mu.Unlock()
 	ok, _ := rib.tree.Set(p, r)
 	if !ok {
-		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
+		return fmt.Errorf("unable to add %s to the routing table", r.cidr.String())
 	}
 	return nil
 }
@@ -59,10 +59,10 @@ func (rib RIB) Set(r Route) error {
 	}
 	rib.mu.Lock()
 	defer rib.mu.Unlock()
-	ok, _ := rib.tree.Set(p, r)
-	if !ok {
-		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
-	}
+	_, _ = rib.tree.Set(p, r)
+	//if !ok {
+	//	return fmt.Errorf("unable to add %s to the routing table", r.cidr.String())
+	//}
 	return nil
 }
 
@@ -240,9 +240,9 @@ func (i *RIBIterator) Next() bool {
 
 func (i *RIBIterator) Route() Route {
 
-	var addrSlice []byte
+	//var addrSlice []byte
 
-	addrSlice = make([]byte, 16)
+	addrSlice := make([]byte, 16)
 	binary.BigEndian.PutUint64(addrSlice, i.iter.Address().Left)
 	binary.BigEndian.PutUint64(addrSlice[8:], i.iter.Address().Right)
 
