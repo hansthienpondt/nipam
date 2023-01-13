@@ -24,7 +24,7 @@ type RIBIterator struct {
 
 func NewRIB() *RIB {
 	return &RIB{
-		mu:   &sync.RWMutex{},
+		mu:   new(sync.RWMutex),
 		tree: generics_tree.NewTreeV6[Route](),
 	}
 }
@@ -87,6 +87,7 @@ func (rib *RIB) Delete(r Route) error {
 
 func (rib *RIB) Clone() *RIB {
 	return &RIB{
+		mu:   new(sync.RWMutex),
 		tree: rib.tree.Clone(),
 	}
 }
