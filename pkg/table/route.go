@@ -82,7 +82,7 @@ func (r Route) GetAvailablePrefixByBitLen(rib *RIB, b uint8) netip.Prefix {
 }
 
 func (r Route) UpdateLabel(label map[string]string) Route {
-	r.labels = labels.Merge(labels.Set(label), r.labels)
+	r.labels = labels.Merge(r.labels, labels.Set(label))
 
 	return r
 }
