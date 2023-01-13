@@ -123,7 +123,6 @@ func main() {
 
 	// Inserting an additional single route with a label.
 	ipam2Route := table.NewRoute(netip.MustParsePrefix("192.168.0.192/26"), nil, nil)
-	//ipam2Route := table.NewRoute(netaddr.MustParseIPPrefix("192.168.0.128/25"))
 	ipam2Route = ipam2Route.UpdateLabel(map[string]string{"foo": "bar", "boo": "hoo"})
 	if err := rtable.Add(ipam2Route); err != nil {
 		fmt.Println(err)
