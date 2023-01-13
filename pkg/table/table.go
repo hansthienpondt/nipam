@@ -14,7 +14,7 @@ import (
 )
 
 type RIB struct {
-	mu   sync.RWMutex
+	mu   *sync.RWMutex
 	tree *generics_tree.TreeV6[Route]
 }
 
@@ -23,10 +23,13 @@ type RIBIterator struct {
 }
 
 func NewRIB() *RIB {
-	return &RIB{tree: generics_tree.NewTreeV6[Route]()}
+	return &RIB{
+		mu:   &sync.RWMutex{},
+		tree: generics_tree.NewTreeV6[Route](),
+	}
 }
 
-func (rib RIB) Add(r Route) error {
+func (rib *RIB) Add(r Route) error {
 	var p patricia.IPv6Address
 	_, found := rib.Get(r.Prefix())
 	if found {
@@ -41,14 +44,11 @@ func (rib RIB) Add(r Route) error {
 	}
 	rib.mu.Lock()
 	defer rib.mu.Unlock()
-	ok, _ := rib.tree.Set(p, r)
-	if !ok {
-		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
-	}
+	rib.tree.Set(p, r)
 	return nil
 }
 
-func (rib RIB) Set(r Route) error {
+func (rib *RIB) Set(r Route) error {
 	var p patricia.IPv6Address
 
 	if r.cidr.Addr().Is4() {
@@ -59,14 +59,11 @@ func (rib RIB) Set(r Route) error {
 	}
 	rib.mu.Lock()
 	defer rib.mu.Unlock()
-	ok, _ := rib.tree.Set(p, r)
-	if !ok {
-		return fmt.Errorf("Unable to add %s to the routing table", r.cidr.String())
-	}
+	rib.tree.Set(p, r)
 	return nil
 }
 
-func (rib RIB) Delete(r Route) error {
+func (rib *RIB) Delete(r Route) error {
 	var p patricia.IPv6Address
 
 	if r.cidr.Addr().Is4() {
@@ -88,13 +85,13 @@ func (rib RIB) Delete(r Route) error {
 	return nil
 }
 
-func (rib RIB) Clone() *RIB {
+func (rib *RIB) Clone() *RIB {
 	return &RIB{
 		tree: rib.tree.Clone(),
 	}
 }
 
-func (rib RIB) LPM(cidr netip.Prefix) Routes {
+func (rib *RIB) LPM(cidr netip.Prefix) Routes {
 	var p patricia.IPv6Address
 
 	if cidr.Addr().Is4() {
@@ -115,7 +112,7 @@ func (rib RIB) LPM(cidr netip.Prefix) Routes {
 	return foundLabels
 }
 
-func (rib RIB) Get(cidr netip.Prefix) (Route, bool) {
+func (rib *RIB) Get(cidr netip.Prefix) (Route, bool) {
 	// returns true if exact match is found.
 	rib.mu.RLock()
 	defer rib.mu.RUnlock()
@@ -130,7 +127,7 @@ func (rib RIB) Get(cidr netip.Prefix) (Route, bool) {
 	return Route{cidr: cidr, labels: labels.Set{}}, false
 }
 
-func (rib RIB) GetByLabel(selector labels.Selector) Routes {
+func (rib *RIB) GetByLabel(selector labels.Selector) Routes {
 	var routes Routes
 
 	rib.mu.RLock()
@@ -146,7 +143,7 @@ func (rib RIB) GetByLabel(selector labels.Selector) Routes {
 
 	return routes
 }
-func (rib RIB) GetAvailablePrefixes(cidr netip.Prefix) []netip.Prefix {
+func (rib *RIB) GetAvailablePrefixes(cidr netip.Prefix) []netip.Prefix {
 	var bldr netipx.IPSetBuilder
 	bldr.AddPrefix(cidr)
 
@@ -160,7 +157,7 @@ func (rib RIB) GetAvailablePrefixes(cidr netip.Prefix) []netip.Prefix {
 	return s.Prefixes()
 }
 
-func (rib RIB) GetAvailablePrefixByBitLen(cidr netip.Prefix, b uint8) netip.Prefix {
+func (rib *RIB) GetAvailablePrefixByBitLen(cidr netip.Prefix, b uint8) netip.Prefix {
 	var bldr netipx.IPSetBuilder
 	var p netip.Prefix
 	bldr.AddPrefix(cidr)
@@ -176,7 +173,7 @@ func (rib RIB) GetAvailablePrefixByBitLen(cidr netip.Prefix, b uint8) netip.Pref
 	return p
 }
 
-func (rib RIB) Iterate() *RIBIterator {
+func (rib *RIB) Iterate() *RIBIterator {
 	rib.mu.RLock()
 	defer rib.mu.RUnlock()
 
@@ -184,7 +181,7 @@ func (rib RIB) Iterate() *RIBIterator {
 		iter: rib.tree.Iterate()}
 }
 
-func (rib RIB) GetTable() (r Routes) {
+func (rib *RIB) GetTable() (r Routes) {
 	rib.mu.RLock()
 	defer rib.mu.RUnlock()
 
@@ -196,7 +193,7 @@ func (rib RIB) GetTable() (r Routes) {
 	return r
 }
 
-func (rib RIB) Children(cidr netip.Prefix) (r Routes) {
+func (rib *RIB) Children(cidr netip.Prefix) (r Routes) {
 	var route Route
 	rib.mu.RLock()
 	defer rib.mu.RUnlock()
@@ -212,7 +209,7 @@ func (rib RIB) Children(cidr netip.Prefix) (r Routes) {
 	return r
 }
 
-func (rib RIB) Parents(cidr netip.Prefix) (r Routes) {
+func (rib *RIB) Parents(cidr netip.Prefix) (r Routes) {
 	var route Route
 
 	rib.mu.RLock()
@@ -230,7 +227,7 @@ func (rib RIB) Parents(cidr netip.Prefix) (r Routes) {
 	return r
 }
 
-func (rib RIB) Size() int {
+func (rib *RIB) Size() int {
 	return rib.tree.CountTags()
 }
 
@@ -239,10 +236,7 @@ func (i *RIBIterator) Next() bool {
 }
 
 func (i *RIBIterator) Route() Route {
-
-	var addrSlice []byte
-
-	addrSlice = make([]byte, 16)
+	var addrSlice []byte = make([]byte, 16)
 	binary.BigEndian.PutUint64(addrSlice, i.iter.Address().Left)
 	binary.BigEndian.PutUint64(addrSlice[8:], i.iter.Address().Right)
 

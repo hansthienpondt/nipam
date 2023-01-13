@@ -191,4 +191,14 @@ func main() {
 	tst := netip.MustParsePrefix("192.122.0.0/24")
 
 	fmt.Println(netipx.PrefixLastIP(tst))
+
+	fR := netip.MustParsePrefix("192.168.0.0/25")
+	myR, _ := rtable.Get(fR)
+
+	myR = myR.UpdateLabel(map[string]string{"key": "added", "adjustments": "made"})
+	rtable.Set(myR)
+
+	for _, r := range rtable.GetTable() {
+		fmt.Println(r)
+	}
 }
